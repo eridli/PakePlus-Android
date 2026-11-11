@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#2563eb">
+<title>资产盘点助手</title>
+<style>
+:root{
+  --bg:#f4f6fa; --card:#ffffff; --line:#e5e9f0;
+  --text:#1c2330; --muted:#6b7688;
+  --primary:#2563eb; --primary-soft:#eaf1fe;
+  --ok:#16a34a; --ok-soft:#e8f7ee;
+  --bad:#dc2626; --bad-soft:#fdecec;
+  --warn:#d97706; --warn-soft:#fdf3e3;
+  --radius:14px; --shadow:0 2px 10px rgba(28,35,48,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);font-size:15px;line-height:1.45;
+  max-width:520px;margin:0 auto;min-height:100vh;padding-bottom:150px;
+}
+header{
+  position:sticky;top:0;z-index:20;background:var(--card);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;
+}
+header h1{font-size:17px;font-weight:700}
+header .sub{font-size:12px;color:var(--muted)}
+main{padding:10px}
+section.tab{display:none}
+section.tab.active{display:block}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 12px;margin-bottom:10px}
+.card h3{font-size:14px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.stat{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:7px 4px;text-align:center}
+.stat b{display:block;font-size:17px}
+.stat span{font-size:11px;color:var(--muted)}
+.stat.ok b{color:var(--ok)} .stat.bad b{color:var(--bad)} .stat.pri b{color:var(--primary)}
+.progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:0 2px 10px}
+.progress i{display:block;height:100%;background:var(--primary);border-radius:3px;transition:width .3s}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:none;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;
+  cursor:pointer;user-select:none;transition:opacity .15s;width:100%;
+}
+.btn:active{opacity:.75}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.ghost{background:var(--primary-soft);color:var(--primary)}
+.btn.ok{background:var(--ok-soft);color:var(--ok)}
+.btn.bad{background:var(--bad-soft);color:var(--bad)}
+.btn.outline{background:var(--card);border:1px solid var(--line);color:var(--text)}
+.btn.sm{padding:8px 12px;font-size:13px;width:auto}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px}
+.row .btn{flex:1}
+.toggle{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:10px 12px;margin-bottom:10px;font-size:14px;font-weight:600;
+}
+.toggle .hint{font-size:12px;color:var(--muted);font-weight:400}
+.switch{position:relative;width:46px;height:26px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch em{
+  position:absolute;inset:0;background:#cbd3e0;border-radius:13px;transition:.2s;font-style:normal;
+}
+.switch em:before{
+  content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;
+  transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.switch input:checked+em{background:var(--primary)}
+.switch input:checked+em:before{transform:translateX(20px)}
+#camWrap{
+  position:relative;background:#101418;border-radius:var(--radius);overflow:hidden;
+  margin-bottom:14px;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;
+}
+#camWrap video{width:100%;height:100%;object-fit:cover}
+#camWrap .ph{color:#8b93a3;font-size:13px;text-align:center;padding:20px}
+.result-card{border-left:4px solid var(--primary)}
+.result-card.found{border-left-color:var(--ok)}
+.result-card.notfound{border-left-color:var(--bad)}
+.result-card.dup{border-left-color:var(--warn)}
+.kv{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.kv:last-child{border-bottom:none}
+.kv b{color:var(--muted);font-weight:500;flex:none;width:74px}
+.kv span{text-align:right;word-break:break-all}
+.next-card{background:var(--primary-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px}
+.next-card h3{color:var(--primary);font-size:14px;font-weight:600;margin-bottom:6px}
+.next-card .kv{border-color:#d4e2fb}
+.next-card .kv b{color:#5b7ec9}
+.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
+.tag.pending{background:var(--line);color:var(--muted)}
+.tag.pass{background:var(--ok-soft);color:var(--ok)}
+.tag.fail{background:var(--bad-soft);color:var(--bad)}
+.searchbar{
+  display:flex;gap:8px;margin-bottom:12px;
+}
+.searchbar input{
+  flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-size:15px;
+  background:var(--card);outline:none;
+}
+.searchbar input:focus{border-color:var(--primary)}
+.item{
+  display:flex;align-items:center;gap:10px;background:var(--card);
+  border-radius:12px;box-shadow:var(--shadow);padding:10px;margin-bottom:8px;
+}
+.item .info{flex:1;min-width:0}
+.item .code{font-weight:700;font-size:15px;word-break:break-all}
+.item .meta{font-size:12px;color:var(--muted);margin-top:2px;word-break:break-all}
+.item .ops{display:flex;flex-direction:column;gap:6px;flex:none}
+.empty{text-align:center;color:var(--muted);padding:20px 10px;font-size:14px}
+input[type=file]{display:none}
+.notice{
+  background:var(--warn-soft);color:#92510a;border-radius:12px;
+  padding:11px 13px;font-size:13px;margin-bottom:12px;
+}
+.notice.blue{background:var(--primary-soft);color:#2b4f9e}
+#toast{
+  position:fixed;left:50%;bottom:100px;transform:translateX(-50%) translateY(20px);
+  background:#262d3b;color:#fff;padding:11px 20px;border-radius:24px;font-size:14px;
+  opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:86%;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* 全屏扫码层 */
+#scanView{position:fixed;inset:0;background:#000;z-index:60;display:none}
+#scanView.open{display:block}
+#scanView video{width:100%;height:100%;object-fit:cover}
+.sv-frame{
+  position:absolute;left:10%;top:32%;width:80%;height:34%;
+  border:2px solid #4ade80;border-radius:12px;pointer-events:none;
+  box-shadow:0 0 0 100vmax rgba(0,0,0,.35);
+}
+.sv-frame:after{
+  content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;margin-left:-1px;
+  background:rgba(74,222,128,.7);animation:svline 1.6s linear infinite;
+}
+@keyframes svline{0%{top:-2px;bottom:96%}50%{top:96%;bottom:-2px}100%{top:-2px;bottom:96%}}
+.sv-top{
+  position:absolute;top:0;left:0;right:0;padding:14px 16px 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sv-close{border:none;background:rgba(0,0,0,.55);color:#fff;font-size:15px;padding:10px 18px;border-radius:22px}
+.sv-hint{color:#4ade80;font-size:13px;background:rgba(0,0,0,.5);padding:8px 14px;border-radius:20px}
+#camCtl{position:absolute;bottom:26px;left:0;right:0;display:none;justify-content:center;gap:12px}
+#modal{
+  position:fixed;inset:0;background:rgba(20,26,38,.45);z-index:50;
+  display:none;align-items:flex-end;justify-content:center;
+}
+#modal.show{display:flex}
+#modal .sheet{
+  background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;
+  padding:18px 16px 22px;max-height:82vh;overflow-y:auto;
+}
+#modal .sheet h3{font-size:16px;margin-bottom:12px}
+nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:520px;background:var(--card);border-top:1px solid var(--line);
+  display:flex;z-index:20;
+}
+/* 可收缩的盘点设置 */
+.settings{margin-bottom:10px}
+.set-head{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  background:var(--card);border:none;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:10px 12px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;
+}
+.set-head span{color:var(--muted);font-weight:400}
+.set-body{display:none;margin-top:8px}
+.set-body.open{display:block}
+/* 底部操作栏（盘点页） */
+#actionBar{
+  position:fixed;bottom:62px;left:50%;transform:translateX(-50%);
+  width:100%;max-width:520px;padding:8px 14px;display:none;gap:10px;
+  z-index:15;background:var(--bg);
+}
+nav button{
+  flex:1;border:none;background:none;padding:10px 0 12px;font-size:12px;color:var(--muted);
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;
+}
+nav button svg{width:23px;height:23px}
+nav button.active{color:var(--primary);font-weight:600}
+.link{color:var(--primary);text-decoration:none}
+.hint-small{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>资产盘点助手</h1>
+    <div class="sub" id="listName">未导入盘点列表</div>
+  </div>
+  <button class="btn ghost sm" onclick="switchTab('data')">导入</button>
+</header>
+
+<main>
+<!-- ============ 盘点 ============ -->
+<section class="tab active" id="tab-scan">
+  <div class="stats">
+    <div class="stat pri"><b id="stTotal">0</b><span>总数</span></div>
+    <div class="stat ok"><b id="stPass">0</b><span>已通过</span></div>
+    <div class="stat bad"><b id="stFail">0</b><span>不通过</span></div>
+    <div class="stat"><b id="stLeft">0</b><span>待盘点</span></div>
+  </div>
+  <div class="progress"><i id="progBar" style="width:0%"></i></div>
+
+  <div class="card">
+    <h3>⌨️ 手动输入编号</h3>
+    <div class="searchbar" style="margin-bottom:0">
+      <input id="manualInput" placeholder="输入 SN 或固资号，回车确认" onkeydown="if(event.key==='Enter')submitManual()">
+      <button class="btn primary sm" style="flex:none;padding:0 18px" onclick="submitManual()">确认</button>
+    </div>
+  </div>
+
+  <div id="scanResult"></div>
+
+  <div id="nextBox"></div>
+
+  <div class="settings">
+    <button class="set-head" onclick="toggleSettings()">⚙️ 盘点设置<span id="setArrow">▸</span></button>
+    <div class="set-body" id="setBody">
+      <div class="toggle" style="margin-bottom:8px">
+        <div>🚫 拒绝重复编号
+          <div class="hint">开启后，已盘点的资产再次扫码将被拦截</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="rejectDup" checked><em></em></label>
+      </div>
+      <div class="toggle" style="margin-bottom:0">
+        <div>✋ 手动确认
+          <div class="hint">开启后，扫码/输入需手动点「通过 / 不通过」；关闭后，匹配到列表资产时自动记为「通过」（可在结果卡撤销）</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="autoConfirm" checked><em></em></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 资产列表 ============ -->
+<section class="tab" id="tab-list">
+  <div class="searchbar">
+    <input id="filterInput" placeholder="搜索 SN / 固资号 / PN / 位置…" oninput="renderList()">
+    <select id="statusFilter" onchange="renderList()" style="border:1px solid var(--line);border-radius:12px;padding:0 10px;background:var(--card);font-size:14px">
+      <option value="">全部</option>
+      <option value="pending">待盘点</option>
+      <option value="pass">已通过</option>
+      <option value="fail">不通过</option>
+    </select>
+  </div>
+  <div id="listBody"></div>
+</section>
+
+<!-- ============ 数据 ============ -->
+<section class="tab" id="tab-data">
+  <div class="card">
+    <h3>📥 导入盘点列表</h3>
+    <div class="notice blue">支持 CSV / TXT / XLS / XLSX，表头需包含：<b>SN</b>（必填），可选列：<b>固资号</b>、<b>资产类型</b>、<b>PN</b>、<b>位置</b> 等。导入新列表将覆盖当前数据。</div>
+    <button class="btn primary" onclick="document.getElementById('fileIn').click()">选择文件导入</button>
+    <input type="file" id="fileIn" accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importFile(this)">
+    <div class="hint-small">支持 CSV / TXT / XLS / XLSX。<b>在微信中打开本页面</b>，点上方按钮即可从聊天文件中选择表格；在系统文件选择器中也可切换到「微信 / 微信文件」目录选取。</div>
+  </div>
+
+  <div class="card">
+    <h3>🧪 没有文件？载入示例数据</h3>
+    <button class="btn outline" onclick="loadDemo()">载入 8 条示例资产</button>
+  </div>
+
+  <div class="card">
+    <h3>📤 导出盘点表</h3>
+    <div class="notice" id="exportTip">尚无可导出的数据，请先导入列表。</div>
+    <button class="btn ok" id="exportBtn" onclick="exportCSV()" disabled>导出盘点结果（CSV，Excel 可直接打开）</button>
+    <div class="hint-small">导出内容：资产编号、类型、位置、SN、盘点状态、盘点方式、盘点时间。</div>
+  </div>
+
+  <div class="card">
+    <h3>🗑️ 数据管理</h3>
+    <div class="row">
+      <button class="btn outline" onclick="clearResults()">仅清空盘点结果</button>
+      <button class="btn bad" onclick="clearAll()">清空全部数据</button>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- 全屏扫码层 -->
+<div id="scanView">
+  <video id="video" playsinline muted></video>
+  <div class="sv-frame"></div>
+  <div class="sv-top">
+    <button class="sv-close" onclick="stopScan()">✕ 退出</button>
+    <div class="sv-hint">对准条码 / 二维码，保持稳定</div>
+  </div>
+  <div id="camCtl">
+    <button class="btn sm" id="torchBtn" style="width:auto;background:rgba(255,255,255,.92);color:#1c2330" onclick="toggleTorch()">🔦 补光</button>
+    <button class="btn sm" id="zoomOut" style="width:auto;background:rgba(255,255,255,.92);color:#1c2330;font-weight:800" onclick="zoomBy(-1)">－</button>
+    <button class="btn sm" id="zoomIn" style="width:auto;background:rgba(255,255,255,.92);color:#1c2330;font-weight:800" onclick="zoomBy(1)">＋</button>
+    <button class="btn sm" id="fastBtn" style="width:auto;background:rgba(255,255,255,.92);color:#1c2330" onclick="toggleFast()">⚡ 极速</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- 手动核对弹层 -->
+<div id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="sheet">
+    <h3 id="modalTitle">手动核对</h3>
+    <div id="modalBody"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn outline" onclick="closeModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 底部操作栏（仅盘点页显示） -->
+<div id="actionBar">
+  <button class="btn primary" id="scanBtn" onclick="openScan()">📷 扫码盘点</button>
+  <button class="btn ghost" onclick="openManual()">手动核对</button>
+</div>
+
+<nav>
+  <button class="active" id="nav-scan" onclick="switchTab('scan')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M3 12h18"/></svg>
+    盘点
+  </button>
+  <button id="nav-list" onclick="switchTab('list')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+    资产列表
+  </button>
+  <button id="nav-data" onclick="switchTab('data')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    数据
+  </button>
+</nav>
+
+<script>
+/* ================= 状态与持久化 ================= */
+let items = [];          // {id, code, type, location, sn, status, method, time}
+let listMeta = { name:'', importedAt:null };
+let scanning = false, stream = null, detectTimer = null, lastCode = '', lastCodeAt = 0, lastSource = 'scan';
+
+const $ = id => document.getElementById(id);
+const STORE_KEY = 'asset_inventory_v1';
+
+function save(){
+  localStorage.setItem(STORE_KEY, JSON.stringify({items, listMeta}));
+}
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(STORE_KEY));
+    if(d && d.items){ items = d.items; listMeta = d.listMeta || listMeta; }
+  }catch(e){}
+}
+
+/* ================= 工具 ================= */
+function toast(msg, ms=2200){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), ms);
+}
+function beep(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 1200; g.gain.value = .18;
+    o.start(); o.stop(ctx.currentTime + .12);
+    setTimeout(()=>ctx.close(), 400);
+  }catch(e){}
+}
+function buzz(){ if(navigator.vibrate) navigator.vibrate(120); }
+function esc(s){ return String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function nowStr(){
+  const d = new Date(), p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+const statusText = s => ({pending:'待盘点', pass:'通过', fail:'不通过'})[s] || s;
+
+/* ================= 页面切换 ================= */
+function switchTab(name){
+  document.querySelectorAll('section.tab').forEach(s=>s.classList.remove('active'));
+  $('tab-'+name).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  $('nav-'+name).classList.add('active');
+  $('actionBar').style.display = (name==='scan') ? 'flex' : 'none';
+  if(name==='scan'){
+    renderScan();
+    if(!scanning) setTimeout(()=>$('manualInput').focus(), 150);
+  }
+  if(name==='list') renderList();
+  if(name==='data') renderData();
+  if(name!=='scan' && scanning) stopScan();
+}
+
+/* ---- 盘点设置折叠 ---- */
+function toggleSettings(){
+  const open = $('setBody').classList.toggle('open');
+  $('setArrow').textContent = open ? '▾' : '▸';
+  try{ localStorage.setItem('setOpen', open ? '1' : '0'); }catch(e){}
+}
+function initSettings(){
+  try{
+    if(localStorage.getItem('setOpen') === '1'){
+      $('setBody').classList.add('open');
+      $('setArrow').textContent = '▾';
+    }
+  }catch(e){}
+}
+
+/* ================= 渲染 ================= */
+function updateStats(){
+  const total = items.length;
+  const pass = items.filter(i=>i.status==='pass').length;
+  const fail = items.filter(i=>i.status==='fail').length;
+  $('stTotal').textContent = total;
+  $('stPass').textContent = pass;
+  $('stFail').textContent = fail;
+  $('stLeft').textContent = total - pass - fail;
+  $('progBar').style.width = total ? Math.round((pass+fail)/total*100)+'%' : '0%';
+  $('listName').textContent = listMeta.name ? `列表：${listMeta.name}（${total} 条）` : '未导入盘点列表';
+}
+
+function assetKV(it){
+  return `
+    <div class="kv"><b>SN</b><span>${esc(it.sn)}</span></div>
+    <div class="kv"><b>固资号</b><span>${esc(it.code||'—')}</span></div>
+    <div class="kv"><b>资产类型</b><span>${esc(it.type||'—')}</span></div>
+    <div class="kv"><b>PN</b><span>${esc(it.pn||'—')}</span></div>
+    <div class="kv"><b>位置</b><span>${esc(it.location||'—')}</span></div>
+    <div class="kv"><b>状态</b><span class="tag ${it.status}">${statusText(it.status)}</span></div>`;
+}
+
+function renderScan(){
+  updateStats();
+  $('scanResult').innerHTML = '';
+  renderNext();
+}
+
+function renderNext(){
+  const box = $('nextBox');
+  if(!items.length){
+    box.innerHTML = `<div class="next-card"><h3>📌 开始盘点</h3>
+      <div style="font-size:13px;color:#5b7ec9">可先在「数据」页导入盘点列表，也可以直接点击「开始扫描」——扫到的编号会自动采集为待盘点资产。</div></div>`;
+    return;
+  }
+  const next = items.find(i=>i.status==='pending');
+  if(!next){
+    box.innerHTML = `<div class="next-card"><h3>🎉 盘点完成</h3>
+      <div style="font-size:13px;color:#5b7ec9">全部 ${items.length} 条资产已核对完毕，可前往「数据」页导出盘点表。</div></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="next-card"><h3>📌 下一条资产（按列表顺序）</h3>
+    <div class="kv"><b>位置</b><span>${esc(next.location||'—')}</span></div>
+    <div class="kv"><b>SN</b><span>${esc(next.sn)}</span></div>
+    <div class="kv"><b>固资号</b><span>${esc(next.code||'—')}</span></div>
+    <div class="kv"><b>资产类型</b><span>${esc(next.type||'—')}</span></div></div>`;
+}
+
+function showScanResult(it, kind){ // kind: found | collect | dup
+  const box = $('scanResult');
+  if(kind==='dup'){
+    box.innerHTML = `<div class="card result-card dup">
+      <h3>⚠️ 重复扫描 — 已拦截</h3>
+      ${assetKV(it)}
+      <div style="font-size:13px;color:var(--warn);margin-top:8px">该资产已盘点为「${statusText(it.status)}」。如需重新核对，请关闭“拒绝重复编号”或到资产列表中修改。</div></div>`;
+    return;
+  }
+  if(kind==='autopass'){
+    box.innerHTML = `<div class="card result-card found">
+      <h3>⚡ 已自动通过（匹配列表资产）</h3>
+      ${assetKV(it)}
+      <div class="row" style="margin-top:12px">
+        <button class="btn outline" onclick="undoAuto('${it.id}')">↩ 撤销，改回手动核对</button>
+      </div></div>`;
+    return;
+  }
+  if(kind==='collect'){
+    box.innerHTML = `<div class="card result-card found">
+      <h3>🆕 已采集新编号（记为 SN）</h3>
+      ${assetKV(it)}
+      <div style="font-size:13px;color:var(--muted);margin-top:8px">该编号不在原列表中，已按 SN 自动加入盘点列表。请核对实物后标记结果；固资号、资产类型、PN、位置可到「资产列表」页点击该资产补充。</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ok" onclick="verdict('${it.id}','pass')">✔ 通过</button>
+        <button class="btn bad" onclick="verdict('${it.id}','fail')">✘ 不通过</button>
+      </div></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="card result-card found">
+    <h3>✅ 匹配成功，请核对实物</h3>
+    ${assetKV(it)}
+    <div class="row" style="margin-top:12px">
+      <button class="btn ok" onclick="verdict('${it.id}','pass')">✔ 通过</button>
+      <button class="btn bad" onclick="verdict('${it.id}','fail')">✘ 不通过</button>
+    </div></div>`;
+}
+
+/* ================= 扫码处理 ================= */
+function findAsset(text){
+  const t = String(text).trim();
+  return items.find(i=>i.sn === t) || items.find(i=>i.code && i.code === t) || items.find(i=>i.pn && i.pn === t);
+}
+
+function handleCode(text, source){
+  const now = Date.now();
+  lastSource = source || 'scan';
+  if(text === lastCode && now - lastCodeAt < 2500) return; // 防抖：同一码 2.5 秒内不重复处理
+  lastCode = text; lastCodeAt = now;
+  beep(); buzz();
+
+  let it = findAsset(text);
+  const fresh = !it;
+  if(fresh) it = addUnknownAsset(text); // 未导入列表或新编号：扫码采集为新资产
+
+  // 自动通过模式：关闭「手动确认」时，匹配到列表内的待盘点资产直接记「通过」
+  if(!fresh && it.status === 'pending' && !confirmMode()){
+    it.status = 'pass';
+    it.method = it.method || lastSource;
+    it.time = nowStr();
+    save(); updateStats(); renderNext();
+    showScanResult(it, 'autopass');
+  }else if(!fresh && it.status !== 'pending' && $('rejectDup').checked){
+    showScanResult(it,'dup');
+  }else{
+    showScanResult(it, fresh ? 'collect' : 'found');
+  }
+  if(scanning) stopScan(); // 识别到即退出全屏扫码，回到主页核对结果
+}
+
+function addUnknownAsset(text){
+  const t = String(text).trim();
+  let it = findAsset(t);
+  if(it) return it;
+  it = { id:'a'+Date.now().toString(36)+Math.floor(Math.random()*1e4), sn:t, code:'', type:'', pn:'', location:'',
+         status:'pending', method:null, time:null, _fresh:true };
+  items.push(it);
+  if(!listMeta.name) listMeta = { name:'扫码采集', importedAt:nowStr() };
+  save(); updateStats();
+  return it;
+}
+
+/* ================= 手动输入编号 ================= */
+function submitManual(){
+  const v = $('manualInput').value.trim();
+  if(!v){ toast('请先输入 SN 或固资号'); return; }
+  $('manualInput').value = '';
+  lastCode = ''; lastCodeAt = 0; // 手动输入不受扫码防抖限制
+  handleCode(v, 'manual');       // 与扫码走同一套匹配/拦截/采集逻辑
+}
+
+function verdict(id, status){
+  const it = items.find(i=>i.id===id); if(!it) return;
+  it.status = status;
+  it.method = it.method || lastSource;
+  it.time = nowStr();
+  save(); updateStats();
+  $('scanResult').innerHTML = '';
+  renderNext();
+  toast(status==='pass' ? '✔ 已记录：通过' : '✘ 已记录：不通过');
+  if(status==='pass') beep();
+}
+
+function undoAuto(id){
+  const it = items.find(i=>i.id===id); if(!it) return;
+  it.status = 'pending'; it.method = null; it.time = null;
+  save(); updateStats(); renderNext();
+  showScanResult(it, 'found');
+  toast('已撤销自动通过，请手动核对');
+}
+
+/* ---- 「手动确认」开关（关闭 = 匹配资产自动通过） ---- */
+function confirmMode(){
+  try{ return localStorage.getItem('scanConfirm') !== '0'; }catch(e){ return true; }
+}
+$('autoConfirm').checked = confirmMode();
+$('autoConfirm').addEventListener('change', e=>{
+  try{ localStorage.setItem('scanConfirm', e.target.checked ? '1' : '0'); }catch(err){}
+  toast(e.target.checked ? '已开启手动确认' : '已关闭手动确认：匹配资产将自动通过', 2200);
+});
+
+/* ================= 摄像头扫描 ================= */
+let detector = null, zxingReader = null, useZX = false;
+let scanStartAt = 0, foundAny = false;
+
+function loadScript(srcs){
+  return new Promise((res,rej)=>{
+    let i=0;
+    const next=()=>{
+      if(i>=srcs.length) return rej(new Error('所有源均加载失败'));
+      const s=document.createElement('script');
+      s.src=srcs[i++]; s.onload=res; s.onerror=next;
+      document.head.appendChild(s);
+    };
+    next();
+  });
+}
+
+async function ensureZXing(){
+  try{
+    if(!window.ZXingBrowser){
+      // 优先加载 APP 内打包的本地解码库（离线可用），失败再走 CDN
+      await loadScript(['libs/zxing-browser.min.js','https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js']);
+    }
+    if(!zxingReader){
+      const ZX = window.ZXingBrowser;
+      let reader = null;
+      // 提升识别度：限定常见码制 + 深度识别(TRY_HARDER) + 提高扫描频率
+      try{
+        const hints = new Map();
+        if(ZX.BarcodeFormat && ZX.DecodeHintType){
+          const F = ZX.BarcodeFormat;
+          hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
+            F.QR_CODE, F.CODE_128, F.CODE_39, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E,
+            F.ITF, F.CODABAR, F.DATA_MATRIX, F.PDF_417, F.AZTEC
+          ]);
+          hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+        }
+        reader = new ZX.BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 100, delayBetweenScanSuccess: 500 });
+      }catch(e){ reader = null; }
+      if(!reader) reader = new ZX.BrowserMultiFormatReader();
+      zxingReader = reader;
+    }
+    return true;
+  }catch(e){ return false; }
+}
+
+async function initScanner(){
+  // 首选系统级 BarcodeDetector（Chrome 手机浏览器）
+  if(!useZX && 'BarcodeDetector' in window){
+    try{
+      const formats = await window.BarcodeDetector.getSupportedFormats();
+      if(formats && formats.length){
+        detector = new window.BarcodeDetector({ formats });
+        return true;
+      }
+    }catch(e){}
+  }
+  // WebView / APK 环境：使用内置 ZXing 解码库（支持 QR、Code128、EAN、Code39、DataMatrix 等一维/二维码）
+  return await ensureZXing();
+}
+
+async function openScan(){
+  try{ $('manualInput').blur(); }catch(e){}   // 收起键盘
+  if(!items.length) toast('未导入列表：将直接扫码采集新资产', 2600);
+  if(!(await initScanner())){
+    toast('解码引擎初始化失败，请确认 libs 文件夹与 index.html 在一起', 3600);
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    toast('当前环境未开放摄像头接口，请检查 APP 摄像头权限设置', 3600);
+    return;
+  }
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width:{ideal:1920}, height:{ideal:1080} }, audio:false
+    });
+  }catch(e){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} }, audio:false
+      });
+    }catch(e2){
+      toast('无法打开摄像头：'+(e2.name==='NotAllowedError'?'未授权摄像头权限':'设备不可用'), 3200);
+      return;
+    }
+  }
+  const video = $('video');
+  $('scanView').classList.add('open');   // 先显示全屏层，避免部分 WebView 对隐藏视频不渲染帧
+  video.srcObject = stream;
+  await video.play();
+  scanning = true;
+  scanStartAt = Date.now(); foundAny = false; fullFrame = false;
+  setupCamCtl();
+  updateFastBtn();
+  startEngine();
+}
+
+/* ---- 解码提速：默认只解取景框区域（上限 1400px 尽量保原生分辨率）；6 秒无结果自动切全帧兜底 ---- */
+const scanCanvas = document.createElement('canvas');
+let scanCtx = null, fullFrame = false;
+
+function drawRegion(video, region){
+  const cw = video.clientWidth || 1, ch = video.clientHeight || 1;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if(!vw || !vh) return false;
+  let sx, sy, sw, sh;
+  if(region){
+    // 取景框（与 .sv-frame 一致：left 10% / top 32% / 80% × 34%），object-fit:cover 坐标换算
+    const fx = cw*region.x, fy = ch*region.y, fw = cw*region.w, fh = ch*region.h;
+    const scale = Math.max(cw/vw, ch/vh);
+    const ox = (vw*scale - cw)/2, oy = (vh*scale - ch)/2;
+    sx = Math.max(0, (fx+ox)/scale); sy = Math.max(0, (fy+oy)/scale);
+    sw = Math.min(fw/scale, vw-sx);  sh = Math.min(fh/scale, vh-sy);
+  }else{
+    sx = 0; sy = 0; sw = vw; sh = vh; // 全帧兜底
+  }
+  if(sw < 8 || sh < 8) return false;
+  const outW = Math.min(region ? 1400 : 1920, Math.round(sw));
+  const k = outW/sw, outH = Math.max(1, Math.round(sh*k));
+  if(scanCanvas.width !== outW || scanCanvas.height !== outH){ scanCanvas.width = outW; scanCanvas.height = outH; }
+  scanCtx = scanCtx || scanCanvas.getContext('2d', { willReadFrequently:true });
+  scanCtx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH);
+  return true;
+}
+
+/* ---- 统一解码循环（BarcodeDetector 与 ZXing 共用） ---- */
+let detectBusy = false;
+
+function cropLoop(){
+  if(!scanning) return;
+  const video = $('video');
+  if(video.readyState >= 2){
+    const region = fullFrame ? null : { x:0.10, y:0.32, w:0.80, h:0.34 };
+    if(drawRegion(video, region)){
+      try{
+        if(detector){
+          if(!detectBusy){
+            detectBusy = true;
+            detector.detect(scanCanvas).then(codes=>{
+              detectBusy = false;
+              if(scanning && codes && codes.length){
+                foundAny = true;
+                handleCode(codes[0].rawValue);
+              }
+            }).catch(()=>{ detectBusy = false; });
+          }
+          // 看门狗：BarcodeDetector 持续无结果时自动切换 ZXing（WebView 兼容）
+          if(!foundAny && !switchingZX && Date.now()-scanStartAt > 10000) switchToZX();
+        }else if(zxingReader){
+          const result = zxingReader.decodeFromCanvas(scanCanvas);
+          if(result){
+            foundAny = true;
+            handleCode(typeof result.getText==='function' ? result.getText() : String(result));
+          }
+        }
+      }catch(e){ /* 单帧失败忽略 */ }
+      // 兜底：6 秒无识别结果，切回全帧解码（最差不差于旧版全帧模式）
+      if(!foundAny && !fullFrame && Date.now()-scanStartAt > 6000) fullFrame = true;
+    }
+  }
+  if(scanning) detectTimer = setTimeout(cropLoop, detector ? 200 : 80);
+}
+
+let switchingZX = false;
+async function switchToZX(){
+  if(switchingZX) return;
+  switchingZX = true;
+  const ok = await ensureZXing();
+  switchingZX = false;
+  if(!scanning || !ok) return;
+  detector = null; useZX = true;
+  scanStartAt = Date.now(); foundAny = false; fullFrame = false;
+  clearTimeout(detectTimer);
+  toast('已切换兼容解码模式', 1800);
+  startEngine();
+}
+
+/* ---- 引擎调度：稳定模式（默认，全帧解码，兼容性最好）/ 极速模式（取景框裁剪，快的设备更快） ---- */
+function fastMode(){ try{ return localStorage.getItem('scanFast') === '1'; }catch(e){ return false; } }
+function setFastMode(v){ try{ localStorage.setItem('scanFast', v ? '1' : '0'); }catch(e){} }
+function updateFastBtn(){
+  $('fastBtn').style.background = fastMode() ? '#fde68a' : 'rgba(255,255,255,.92)';
+}
+function startEngine(){
+  clearTimeout(detectTimer);
+  if(!scanning) return;
+  if(!fastMode()){
+    if(detector) loopDetectFull(); else startZX();   // 稳定模式：全帧解码
+  }else{
+    cropLoop();                                       // 极速模式：裁剪 + 6秒全帧兜底
+  }
+}
+function toggleFast(){
+  const v = !fastMode();
+  setFastMode(v);
+  updateFastBtn();
+  toast(v ? '已开启极速模式（裁剪加速）' : '已切换稳定模式（全帧，兼容性最好）', 2200);
+  if(scanning){
+    clearTimeout(detectTimer);
+    scanStartAt = Date.now(); foundAny = false; fullFrame = false;
+    startEngine();
+  }
+}
+
+/* ---- 稳定模式 A：BarcodeDetector 全帧检测 ---- */
+function loopDetectFull(){
+  if(!scanning || !detector) return;
+  const video = $('video');
+  const tick = async ()=>{
+    if(!scanning) return;
+    if(video.readyState >= 2 && !detectBusy){
+      detectBusy = true;
+      try{
+        const codes = await detector.detect(video);
+        if(codes && codes.length){
+          foundAny = true;
+          handleCode(codes[0].rawValue);
+        }else if(!foundAny && !switchingZX && Date.now()-scanStartAt > 10000){
+          switchToZX();
+          return;
+        }
+      }catch(e){ /* 单帧失败忽略 */ }
+      detectBusy = false;
+    }
+    if(scanning) detectTimer = setTimeout(tick, 200);
+  };
+  tick();
+}
+
+/* ---- 稳定模式 B：ZXing 全帧解码（自控循环，每帧后检查状态，关闭即停不泄漏） ---- */
+function zxFullLoop(){
+  const tick = ()=>{
+    if(!scanning) return;
+    const video = $('video');
+    if(video.readyState >= 2 && drawRegion(video, null)){
+      try{
+        const result = zxingReader.decodeFromCanvas(scanCanvas);
+        if(result){
+          foundAny = true;
+          handleCode(typeof result.getText==='function' ? result.getText() : String(result));
+          return; // 已识别并退出扫码
+        }
+      }catch(e){ /* 单帧失败忽略 */ }
+    }
+    if(scanning) detectTimer = setTimeout(tick, 120);
+  };
+  tick();
+}
+
+/* ---- 补光 / 变焦控制 ---- */
+let camTrack = null, torchOn = false, zoomLevel = null;
+
+function setupCamCtl(){
+  camTrack = stream && stream.getVideoTracks()[0];
+  torchOn = false;
+  $('torchBtn').style.background = 'rgba(255,255,255,.92)';
+  let caps = {};
+  try{ caps = (camTrack && camTrack.getCapabilities) ? camTrack.getCapabilities() : {}; }catch(e){}
+  zoomLevel = (caps.zoom && caps.zoom.max != null) ? Math.max(caps.zoom.min || 1, Math.min(1, caps.zoom.max)) : null;
+  $('torchBtn').style.display  = caps.torch ? '' : 'none';
+  $('zoomIn').style.display    = caps.zoom ? '' : 'none';
+  $('zoomOut').style.display   = caps.zoom ? '' : 'none';
+  $('camCtl').style.display    = 'flex';
+  updateFastBtn();
+}
+async function toggleTorch(){
+  if(!camTrack) return;
+  try{
+    torchOn = !torchOn;
+    await camTrack.applyConstraints({ advanced:[{ torch: torchOn }] });
+    $('torchBtn').style.background = torchOn ? '#fde68a' : 'rgba(255,255,255,.92)';
+  }catch(e){ torchOn = false; }
+}
+async function zoomBy(dir){
+  if(!camTrack || zoomLevel == null) return;
+  try{
+    const caps = camTrack.getCapabilities();
+    const step = (caps.zoom.step || 0.1) * 4;
+    zoomLevel = Math.min(caps.zoom.max, Math.max(caps.zoom.min, zoomLevel + dir * step));
+    await camTrack.applyConstraints({ advanced:[{ zoom: zoomLevel }] });
+  }catch(e){}
+}
+
+function stopScan(){
+  scanning = false;
+  switchingZX = false;
+  detectBusy = false;
+  clearTimeout(detectTimer);
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+  camTrack = null; torchOn = false;
+  $('camCtl').style.display = 'none';
+  $('video').srcObject = null;
+  $('scanView').classList.remove('open');
+}
+
+/* ================= 手动核对 ================= */
+function openModal(title, html){
+  $('modalTitle').textContent = title;
+  $('modalBody').innerHTML = html;
+  $('modal').classList.add('show');
+}
+function closeModal(){ $('modal').classList.remove('show'); }
+
+function openManual(){
+  if(!items.length){ toast('列表为空：请先扫码采集，或到「数据」页导入列表', 3000); return; }
+  openModal('手动核对（条码损坏时使用）', `
+    <input id="mSearch" placeholder="输入 SN / 固资号 / PN / 位置关键词…" style="width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;outline:none" oninput="renderManual()">
+    <div id="mList" style="margin-top:12px;max-height:52vh;overflow-y:auto"></div>
+  `);
+  setTimeout(()=>$('mSearch').focus(), 100);
+}
+function renderManual(){
+  const q = ($('mSearch').value||'').trim().toLowerCase();
+  const list = items.filter(i=>{
+    if(i.status!=='pending') return false;
+    if(!q) return true;
+    return [i.code,i.sn,i.pn,i.location,i.type].some(v=>String(v||'').toLowerCase().includes(q));
+  }).slice(0,30);
+  $('mList').innerHTML = list.length ? list.map(i=>`
+    <div class="item">
+      <div class="info" onclick="editItem('${i.id}')">
+        <div class="code">SN:${esc(i.sn)}</div>
+        <div class="meta">固资号:${esc(i.code||'—')} · ${esc(i.type||'—')} · PN:${esc(i.pn||'—')} · ${esc(i.location||'—')}</div>
+      </div>
+      <div class="ops">
+        <button class="btn ok sm" onclick="manualVerdict('${i.id}','pass')">通过</button>
+        <button class="btn bad sm" onclick="manualVerdict('${i.id}','fail')">不通过</button>
+      </div>
+    </div>`).join('')
+    : `<div class="empty">没有匹配的待盘点资产</div>`;
+}
+function manualVerdict(id, status){
+  const it = items.find(i=>i.id===id); if(!it) return;
+  it.status = status; it.method = 'manual'; it.time = nowStr();
+  save(); updateStats(); renderManual(); renderNext();
+  if($('tab-list').classList.contains('active')) renderList();
+  toast(`已手动核对「${it.code}」：${statusText(status)}`);
+}
+
+/* ================= 资产列表 ================= */
+function renderList(){
+  const q = ($('filterInput').value||'').trim().toLowerCase();
+  const sf = $('statusFilter').value;
+  const list = items.filter(i=>{
+    if(sf && i.status!==sf) return false;
+    if(!q) return true;
+    return [i.code,i.sn,i.pn,i.location,i.type].some(v=>String(v||'').toLowerCase().includes(q));
+  });
+  $('listBody').innerHTML = list.length ? list.map(i=>`
+    <div class="item">
+      <div class="info" onclick="editItem('${i.id}')">
+        <div class="code">${esc(i.sn)} <span class="tag ${i.status}" style="margin-left:4px">${statusText(i.status)}</span></div>
+        <div class="meta">固资号:${esc(i.code||'—')} · ${esc(i.type||'—')} · PN:${esc(i.pn||'—')} · ${esc(i.location||'—')}</div>
+        ${i.time?`<div class="meta">🕒 ${esc(i.time)} · ${i.method==='scan'?'扫码':'手动'}</div>`:''}
+      </div>
+      <div class="ops">
+        ${i.status==='pending'
+          ?`<button class="btn ok sm" onclick="manualVerdict('${i.id}','pass')">通过</button>
+            <button class="btn bad sm" onclick="manualVerdict('${i.id}','fail')">不通过</button>`
+          :`<button class="btn outline sm" onclick="resetItem('${i.id}')">重置</button>`}
+      </div>
+    </div>`).join('')
+    : `<div class="empty">${items.length?'没有符合条件的资产':'暂无资产：可扫码采集或导入列表'}</div>`;
+}
+function resetItem(id){
+  const it = items.find(i=>i.id===id); if(!it) return;
+  it.status='pending'; it.method=null; it.time=null;
+  save(); updateStats(); renderList(); renderNext();
+}
+const IN_STYLE = 'width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;outline:none';
+function editItem(id){
+  const it = items.find(i=>i.id===id); if(!it) return;
+  openModal('编辑资产信息', `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <input id="eSn" style="${IN_STYLE}" value="${esc(it.sn)}" placeholder="SN *">
+      <input id="eCode" style="${IN_STYLE}" value="${esc(it.code)}" placeholder="固资号">
+      <input id="eType" style="${IN_STYLE}" value="${esc(it.type)}" placeholder="资产类型">
+      <input id="ePn" style="${IN_STYLE}" value="${esc(it.pn)}" placeholder="PN">
+      <input id="eLoc" style="${IN_STYLE}" value="${esc(it.location)}" placeholder="位置">
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn outline" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveEdit('${it.id}')">保存</button>
+    </div>
+  `);
+}
+function saveEdit(id){
+  const it = items.find(i=>i.id===id); if(!it) return;
+  const sn = $('eSn').value.trim();
+  if(!sn){ toast('SN 不能为空'); return; }
+  if(items.some(i=>i.id!==id && i.sn===sn)){ toast('该 SN 已存在，请勿重复'); return; }
+  const code = $('eCode').value.trim();
+  if(code && items.some(i=>i.id!==id && i.code===code)){ toast('该固资号已存在，请勿重复'); return; }
+  it.sn = sn;
+  it.code = code;
+  it.type = $('eType').value.trim();
+  it.pn = $('ePn').value.trim();
+  it.location = $('eLoc').value.trim();
+  save(); updateStats(); closeModal(); renderList(); renderNext();
+  toast('✔ 已保存修改');
+}
+
+/* ================= 导入 ================= */
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/,'');
+  const rows=[]; let row=[], field='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inQ=false; }
+      else field+=c;
+    }else{
+      if(c==='"') inQ=true;
+      else if(c===','){row.push(field);field='';}
+      else if(c==='\n'){row.push(field);field='';rows.push(row);row=[];}
+      else if(c==='\r'){}
+      else field+=c;
+    }
+  }
+  if(field!==''||row.length){row.push(field);rows.push(row);}
+  return rows.filter(r=>r.some(c=>String(c).trim()!==''));
+}
+function findCol(headers, candidates){
+  const norm = h => String(h).trim().toLowerCase();
+  for(const c of candidates){
+    const i = headers.findIndex(h=>norm(h)===c.toLowerCase());
+    if(i>=0) return i;
+  }
+  for(const c of candidates){
+    const i = headers.findIndex(h=>norm(h).includes(c.toLowerCase()));
+    if(i>=0) return i;
+  }
+  return -1;
+}
+function importRows(rows, name){
+  if(rows.length < 2){ toast('文件内容为空或缺少数据行'); return; }
+  const head = rows[0].map(h=>String(h).trim());
+  const ci = {
+    sn: findCol(head, ['sn','S/N','序列号','串号','serial','serialno']),
+    code: findCol(head, ['固资号','固定资产编号','资产编号','编号','条码','条形码','资产条码','code','barcode','asset']),
+    type: findCol(head, ['资产类型','类型','名称','资产名称','类别','type','name']),
+    pn: findCol(head, ['pn','P/N','部件号','料号','零件号','partno']),
+    location: findCol(head, ['位置','存放位置','位置信息','存放地点','地点','location'])
+  };
+  if(ci.sn < 0){
+    toast('未识别到「SN」列，请检查表头（需包含：SN/序列号/串号）', 3600);
+    return;
+  }
+  const seen = new Set(); const out = [];
+  for(let r=1;r<rows.length;r++){
+    const sn = String(rows[r][ci.sn]||'').trim();
+    if(!sn || seen.has(sn)) continue;
+    seen.add(sn);
+    out.push({
+      id: 'a'+Date.now().toString(36)+r,
+      sn,
+      code: ci.code>=0 ? String(rows[r][ci.code]||'').trim() : '',
+      type: ci.type>=0 ? String(rows[r][ci.type]||'').trim() : '',
+      pn: ci.pn>=0 ? String(rows[r][ci.pn]||'').trim() : '',
+      location: ci.location>=0 ? String(rows[r][ci.location]||'').trim() : '',
+      status:'pending', method:null, time:null
+    });
+  }
+  if(!out.length){ toast('没有解析到有效数据行'); return; }
+  items = out;
+  listMeta = { name: name || '导入列表', importedAt: nowStr() };
+  save(); updateStats(); renderNext();
+  closeModal();
+  switchTab('scan');
+  toast(`✔ 导入成功：${out.length} 条资产`, 2600);
+}
+function importFile(input){
+  const f = input.files[0]; if(!f) return;
+  const name = f.name.toLowerCase();
+  const done = rows => {
+    try{ importRows(rows, f.name.replace(/\.[^.]+$/,'')); }
+    catch(e){ toast('文件解析失败，请确认是 CSV/TXT/Excel 表格'); }
+    input.value = '';
+  };
+  if(/\.(xlsx|xls)$/.test(name)){
+    loadXLSX().then(()=>{
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const wb = XLSX.read(reader.result, {type:'array'});
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false, defval:''});
+          done(rows);
+        }catch(e){ toast('Excel 解析失败，请确认文件未损坏'); input.value=''; }
+      };
+      reader.readAsArrayBuffer(f);
+    }).catch(()=>{ toast('Excel 解析组件加载失败（需联网一次），请改用 CSV 格式', 3600); input.value=''; });
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => done(parseCSV(reader.result));
+  reader.readAsText(f, 'utf-8');
+}
+function loadXLSX(){
+  return new Promise((res,rej)=>{
+    if(window.XLSX) return res();
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+    setTimeout(rej, 10000);
+  });
+}
+function loadDemo(){
+  importRows([
+    ['固资号','资产类型','PN','位置','SN'],
+    ['GZ-A1024','笔记本电脑','PN-THK-X13','A栋3层-301室 机房','SN98K21XA'],
+    ['GZ-A1025','台式电脑','PN-DLL-7090','A栋3层-305室 办公区','SN54D07QB'],
+    ['GZ-A1026','打印机','PN-HP-M405','A栋2层-201室 财务室','SN11P88LM'],
+    ['GZ-A1027','投影仪','PN-EPS-CB01','B栋1层-102室 会议室','SN77J30VC'],
+    ['GZ-A1028','服务器','PN-DEL-R740','B栋-1层 机房A区','SN05S46HT'],
+    ['GZ-A1029','交换机','PN-H3C-S51','B栋-1层 机房B区','SN62R19NW'],
+    ['GZ-A1030','监控摄像头','PK-HIK-2CD3','C栋大门 东侧立柱','SN33C71YU'],
+    ['GZ-A1031','空调（柜机）','PN-GRE-F72','C栋2层-205室 档案室','SN80X52ZD'],
+  ], '示例盘点列表');
+}
+
+/* ================= 导出 ================= */
+function exportCSV(){
+  if(!items.length){ toast('没有可导出的数据'); return; }
+  const head = ['固资号','资产类型','PN','位置','SN','盘点状态','盘点方式','盘点时间'];
+  const q = v => `"${String(v??'').replace(/"/g,'""')}"`;
+  const lines = [head.map(q).join(',')];
+  items.forEach(i=>{
+    lines.push([i.code,i.type,i.pn,i.location,i.sn,statusText(i.status),
+      i.status==='pending'?'':(i.method==='scan'?'扫码':'手动'), i.time||''].map(q).join(','));
+  });
+  const blob = new Blob(['\uFEFF'+lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  const d = new Date(), p = n=>String(n).padStart(2,'0');
+  a.href = URL.createObjectURL(blob);
+  a.download = `资产盘点表_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('✔ 盘点表已导出');
+}
+function renderData(){
+  const has = items.length>0;
+  $('exportBtn').disabled = !has;
+  $('exportTip').style.display = has ? 'none' : '';
+  if(has){
+    const pass = items.filter(i=>i.status==='pass').length;
+    const fail = items.filter(i=>i.status==='fail').length;
+    $('exportTip').className = 'notice blue';
+    $('exportTip').textContent = `当前列表：${listMeta.name}，共 ${items.length} 条（通过 ${pass} · 不通过 ${fail} · 待盘点 ${items.length-pass-fail}）`;
+    $('exportTip').style.display = '';
+  }
+}
+
+/* ================= 清空 ================= */
+function clearResults(){
+  if(!items.length){ toast('暂无数据'); return; }
+  if(!confirm('仅将所有资产的盘点状态重置为「待盘点」，保留列表，确定吗？')) return;
+  items.forEach(i=>{ i.status='pending'; i.method=null; i.time=null; });
+  save(); updateStats(); renderNext(); renderData();
+  toast('已清空盘点结果');
+}
+function clearAll(){
+  if(!confirm('将删除盘点列表与全部盘点记录，且不可恢复，确定吗？')) return;
+  items = []; listMeta = {name:'',importedAt:null};
+  save(); updateStats(); renderNext(); renderData();
+  toast('已清空全部数据');
+}
+
+/* ================= 启动 ================= */
+load();
+renderScan();
+renderData();
+initSettings();
+$('actionBar').style.display = 'flex';   // 默认在盘点页
+setTimeout(()=>$('manualInput').focus(), 300);  // 光标默认落在手动输入框
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+</script>
+</body>
+</html>
