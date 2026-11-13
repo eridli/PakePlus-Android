@@ -873,12 +873,42 @@ function stopScan(){
 }
 
 /* ================= 手动核对 ================= */
+/* ================= 键盘遮挡适配 ================= */
+function kbHeight(){
+  const vv = window.visualViewport;
+  if(!vv) return 0;
+  return Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+}
+function applyKbOffset(){
+  const kb = kbHeight();
+  const modal = $('modal');
+  if(modal.classList.contains('show')){
+    // 弹层整体抬高键盘高度，输入框与匹配结果都落在键盘上方
+    modal.style.paddingBottom = kb + 'px';
+    const vv = window.visualViewport;
+    const avail = vv ? vv.height : window.innerHeight;
+    document.querySelector('#modal .sheet').style.maxHeight = Math.max(220, Math.round(avail * 0.82)) + 'px';
+  }
+  // 主页手动输入时，底部内容（下一条资产/操作栏）同样顶到键盘上方
+  document.body.style.paddingBottom = (kb > 150 ? 150 + kb : 150) + 'px';
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', applyKbOffset);
+  window.visualViewport.addEventListener('scroll', applyKbOffset);
+}
+window.addEventListener('resize', applyKbOffset);
+
 function openModal(title, html){
   $('modalTitle').textContent = title;
   $('modalBody').innerHTML = html;
   $('modal').classList.add('show');
+  setTimeout(applyKbOffset, 50);
 }
-function closeModal(){ $('modal').classList.remove('show'); }
+function closeModal(){
+  $('modal').classList.remove('show');
+  $('modal').style.paddingBottom = '';
+  document.querySelector('#modal .sheet').style.maxHeight = '';
+}
 
 function openManual(){
   if(!items.length){ toast('列表为空：请先扫码采集，或到「数据」页导入列表', 3000); return; }
