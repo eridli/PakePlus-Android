@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#2563eb">
 <title>资产盘点助手</title>
 <style>
@@ -883,8 +883,8 @@ function applyKbOffset(){
   const kb = kbHeight();
   const modal = $('modal');
   if(modal.classList.contains('show')){
-    // 弹层整体抬高键盘高度，输入框与匹配结果都落在键盘上方
-    modal.style.paddingBottom = kb + 'px';
+    // 弹层整体抬高：键盘高度 + 底部安全区（全屏模式下手势条不会被压住）
+    modal.style.paddingBottom = `calc(${kb}px + env(safe-area-inset-bottom, 0px))`;
     const vv = window.visualViewport;
     const avail = vv ? vv.height : window.innerHeight;
     document.querySelector('#modal .sheet').style.maxHeight = Math.max(220, Math.round(avail * 0.82)) + 'px';
