@@ -155,6 +155,14 @@ input[type=file]{display:none}
   padding:18px 16px 22px;max-height:82vh;overflow-y:auto;
 }
 #modal .sheet h3{font-size:16px;margin-bottom:12px}
+/* 键盘弹出时：弹层改为贴顶对齐，输入框永远在最上方，不受键盘遮挡 */
+#modal.kb-open{align-items:flex-start;padding-top:calc(env(safe-area-inset-top, 0px) + 10px)}
+#modal.kb-open .sheet{
+  max-height:calc(100% - env(safe-area-inset-top, 0px) - 16px);
+  border-radius:18px;padding:14px 14px 12px;
+}
+#modal.kb-open .sheet h3{font-size:14px;margin-bottom:8px}
+#modal.kb-open #mList{max-height:none !important}
 nav{
   position:fixed;bottom:0;left:50%;transform:translateX(-50%);
   width:100%;max-width:520px;background:var(--card);border-top:1px solid var(--line);
@@ -176,6 +184,8 @@ nav{
   width:100%;max-width:520px;padding:8px 14px;display:none;gap:10px;
   z-index:15;background:var(--bg);
 }
+/* 主页输入框获得焦点（键盘弹出）时收起底部按钮栏，避免与键盘/输入框抢位置 */
+body.kb #actionBar{display:none !important}
 nav button{
   flex:1;border:none;background:none;padding:10px 0 12px;font-size:12px;color:var(--muted);
   cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;
@@ -885,13 +895,37 @@ function applyKbOffset(){
   if(modal.classList.contains('show')){
     // 弹层整体抬高：键盘高度 + 底部安全区（全屏模式下手势条不会被压住）
     modal.style.paddingBottom = `calc(${kb}px + env(safe-area-inset-bottom, 0px))`;
+    const sheet = document.querySelector('#modal .sheet');
     const vv = window.visualViewport;
     const avail = vv ? vv.height : window.innerHeight;
-    document.querySelector('#modal .sheet').style.maxHeight = Math.max(220, Math.round(avail * 0.82)) + 'px';
+    // 测得到键盘高度 → 按可视高度收缩；测不到（adjustPan/None 环境）→ 交给 .kb-open 的 CSS 贴顶
+    sheet.style.maxHeight = kb > 40 ? Math.max(220, Math.round(avail * 0.9)) + 'px' : '';
   }
   // 主页手动输入时，底部内容（下一条资产/操作栏）同样顶到键盘上方
   document.body.style.paddingBottom = (kb > 150 ? 150 + kb : 150) + 'px';
 }
+
+/* 键盘模式兜底：有些 WebView（PakePlus/Tauri 等）用 adjustPan，测不到键盘高度，
+   这里以「弹层内输入框获得焦点」为信号，直接把弹层切成贴顶对齐 —— 不依赖任何测量。 */
+document.addEventListener('focusin', e=>{
+  const t = e.target;
+  if(t && t.tagName === 'INPUT' && t.closest && t.closest('#modal')){
+    $('modal').classList.add('kb-open');
+    applyKbOffset();
+  }
+  // 主页手动输入框获得焦点：收起底部按钮栏，防止键盘弹出后被顶住/遮挡
+  if(t && t.id === 'manualInput') document.body.classList.add('kb');
+});
+document.addEventListener('focusout', e=>{
+  setTimeout(()=>{
+    const a = document.activeElement;
+    if(!a || a.tagName !== 'INPUT' || !a.closest || !a.closest('#modal')){
+      $('modal').classList.remove('kb-open');
+      applyKbOffset();
+    }
+    if(!a || a.id !== 'manualInput') document.body.classList.remove('kb');
+  }, 260);
+});
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize', applyKbOffset);
   window.visualViewport.addEventListener('scroll', applyKbOffset);
@@ -906,6 +940,7 @@ function openModal(title, html){
 }
 function closeModal(){
   $('modal').classList.remove('show');
+  $('modal').classList.remove('kb-open');
   $('modal').style.paddingBottom = '';
   document.querySelector('#modal .sheet').style.maxHeight = '';
 }
